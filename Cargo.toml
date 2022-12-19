@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-stormlib-bindings = { git = "ssh://git@github.com/zzlk/stormlib-bindings.git" }
+stormlib-bindings = { git = "https://github.com/zzlk/stormlib-bindings.git" }
 
 anyhow = { version = "*", features = ["backtrace"] }
 scopeguard = "*"
