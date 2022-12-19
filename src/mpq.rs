@@ -3,26 +3,35 @@ use anyhow::bail;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use scopeguard::defer;
+use std::ffi::c_void;
 use std::ffi::CString;
-use std::fs::remove_file;
 use std::fs::File;
 use std::io::Write;
+use std::mem::size_of;
 use std::path::Path;
 use std::sync::Mutex;
 use stormlib_bindings::SFileCloseArchive;
 use stormlib_bindings::SFileCloseFile;
+use stormlib_bindings::SFileGetFileInfo;
 use stormlib_bindings::SFileGetFileSize;
 use stormlib_bindings::SFileOpenFileEx;
 use stormlib_bindings::SFileReadFile;
 use stormlib_bindings::SFileSetLocale;
+use stormlib_bindings::_SFileInfoClass_SFileInfoLocale;
 use stormlib_bindings::ERROR_HANDLE_EOF;
 use stormlib_bindings::SFILE_INVALID_SIZE;
 use stormlib_bindings::{GetLastError, SFileOpenArchive, HANDLE};
+use tempfile::NamedTempFile;
+use tracing::info;
 use tracing::{error, instrument};
-use uuid::Uuid;
 
 #[instrument(level = "trace", skip_all)]
 pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>> {
+    info!(
+        "Extracting scenario.chk. filename: {}",
+        filename.as_ref().to_string_lossy()
+    );
+
     lazy_static! {
         // This is really not the rust way to do things but stormlib_bindings is internally not threadsafe so what we can do.
         static ref LOCK: Mutex<()> = Mutex::new(());
@@ -89,6 +98,25 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
                 }
             };
 
+            let mut gotten_locale = 0u32;
+            if SFileGetFileInfo(
+                archive_file_handle,
+                _SFileInfoClass_SFileInfoLocale,
+                &mut gotten_locale as *mut _ as *mut c_void,
+                size_of::<u32>() as u32,
+                0 as *mut _,
+            ) == false
+            {
+                bail!(
+                    "SFileGetFileInfo. GetLastError: {}, filename: {filename}, locale: {locale}",
+                    GetLastError()
+                );
+            }
+
+            if gotten_locale != locale {
+                bail!("not found");
+            }
+
             let file_size_low;
             let mut file_size_high: u32 = 0;
 
@@ -138,6 +166,8 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
         ];
 
         // PROTECTION: Some maps put fake scenario.chk files at different locales. Try to find the real one by trying a lot of them.
+        // TODO: Although this algorithm works for the existing test cases it does not feel correct. I suspect that when SC opens a file it just takes the first one it finds.
+        // So, in stormlib that would be the one with the lowest index. I won't implement that until doing some more research and confirming that is the case.
         for locale in locales {
             if let Ok(x) = try_map_with_locale("staredit\\scenario.chk", locale) {
                 return Ok(x);
@@ -154,19 +184,13 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
 
 #[instrument(level = "trace", skip_all)]
 pub fn get_chk_from_mpq_in_memory(mpq: &[u8]) -> Result<Vec<u8>> {
-    let path = format!("/tmp/{}.scx", Uuid::new_v4().as_simple().to_string());
+    let temp_file = NamedTempFile::new()?;
 
-    let mut file = File::create(&path)?;
-
-    defer! {
-        if let Err(err) = remove_file(&path) {
-            error!("{:?}", err);
-        }
-    }
+    let mut file = File::create(temp_file.path())?;
 
     file.write(mpq)?;
 
     file.flush()?;
 
-    get_chk_from_mpq_filename(&path)
+    get_chk_from_mpq_filename(&temp_file.path())
 }
