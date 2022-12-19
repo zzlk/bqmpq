@@ -1,10 +1,14 @@
 use anyhow::anyhow;
 use anyhow::bail;
-use anyhow::Error;
+use anyhow::Result;
+use lazy_static::lazy_static;
 use scopeguard::defer;
 use std::ffi::CString;
+use std::fs::remove_file;
+use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use std::sync::Mutex;
 use stormlib_bindings::SFileCloseArchive;
 use stormlib_bindings::SFileCloseFile;
 use stormlib_bindings::SFileGetFileSize;
@@ -18,12 +22,10 @@ use tracing::{error, instrument};
 use uuid::Uuid;
 
 #[instrument(level = "trace", skip_all)]
-pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(
-    filename: T,
-) -> anyhow::Result<Vec<u8>, anyhow::Error> {
-    lazy_static::lazy_static! {
+pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>> {
+    lazy_static! {
         // This is really not the rust way to do things but stormlib_bindings is internally not threadsafe so what we can do.
-        static ref LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        static ref LOCK: Mutex<()> = Mutex::new(());
     }
 
     let cstr = CString::new(
@@ -151,13 +153,13 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(
 }
 
 #[instrument(level = "trace", skip_all)]
-pub fn get_chk_from_mpq_in_memory(mpq: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn get_chk_from_mpq_in_memory(mpq: &[u8]) -> Result<Vec<u8>> {
     let path = format!("/tmp/{}.scx", Uuid::new_v4().as_simple().to_string());
 
-    let mut file = std::fs::File::create(&path)?;
+    let mut file = File::create(&path)?;
 
     defer! {
-        if let Err(err) = std::fs::remove_file(&path) {
+        if let Err(err) = remove_file(&path) {
             error!("{:?}", err);
         }
     }
