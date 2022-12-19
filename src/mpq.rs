@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 use scopeguard::defer;
 use std::ffi::c_void;
 use std::ffi::CString;
+use std::fs::remove_file;
 use std::fs::File;
 use std::io::Write;
 use std::mem::size_of;
@@ -21,9 +22,9 @@ use stormlib_bindings::_SFileInfoClass_SFileInfoLocale;
 use stormlib_bindings::ERROR_HANDLE_EOF;
 use stormlib_bindings::SFILE_INVALID_SIZE;
 use stormlib_bindings::{GetLastError, SFileOpenArchive, HANDLE};
-use tempfile::NamedTempFile;
 use tracing::info;
 use tracing::{error, instrument};
+use uuid::Uuid;
 
 #[instrument(level = "trace", skip_all)]
 pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>> {
@@ -184,13 +185,20 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
 
 #[instrument(level = "trace", skip_all)]
 pub fn get_chk_from_mpq_in_memory(mpq: &[u8]) -> Result<Vec<u8>> {
-    let temp_file = NamedTempFile::new()?;
+    // For stormlib to use the right hacks and fixes, it needs to see a file that ends in .scm or .scx
+    let path = format!("/tmp/{}.scx", Uuid::new_v4().as_simple().to_string());
 
-    let mut file = File::create(temp_file.path())?;
+    let mut file = File::create(&path)?;
+
+    defer! {
+        if let Err(err) = remove_file(&path) {
+            error!("{:?}", err);
+        }
+    }
 
     file.write(mpq)?;
 
     file.flush()?;
 
-    get_chk_from_mpq_filename(&temp_file.path())
+    get_chk_from_mpq_filename(&path)
 }

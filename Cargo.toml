@@ -10,9 +10,11 @@ anyhow = { version = "*", features = ["backtrace"] }
 scopeguard = "*"
 lazy_static = "*"
 tracing = "*"
-tempfile = { version = "*" }
+uuid = { version = "*", features = ["v4"] }
 
 [dev-dependencies]
 reqwest = { version = "*", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
 sha2 = "*"
+futures = "*"
+futures-util = "*"
