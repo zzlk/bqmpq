@@ -65,7 +65,7 @@ async fn download_test_artifacts<'a, T: AsRef<Path>, I: Iterator<Item = &'a str>
     process_iter_async_concurrent(
         iter,
         || dir.as_ref().clone(),
-        8,
+        1,
         |_x, _y| {},
         |path, id| async move {
             let path = path.join(id);
@@ -81,6 +81,7 @@ async fn download_test_artifacts<'a, T: AsRef<Path>, I: Iterator<Item = &'a str>
             }
 
             let url = format!("https://scmscx.com/api/maps/{}", id);
+            println!("getting: {url}");
             let bytes = reqwest::get(url).await.unwrap().bytes().await.unwrap();
 
             assert!(bytes.len() > 0);
@@ -190,7 +191,7 @@ const MPQS: &[(&str, &str)] = &[
     ("a77d89ecf9e52f85d924dae0d47453fe96e46f743061aacbb5e688e6a0642f5b", "a110aab71dd9a8befe2e792fd652c755f1e3233c5cc7da941a06d409badf1588"),
     ("6d382096ef22273b3b0699da1b3402d4d79c9c8eb7b9d778563cb2f860567ff2", "b15021c695f4713272907c5a6c9df749677f747734fd6c57c52818197508d999"),
     ("1225483e77d53ae371989154253e5124d9855c9291dfb288e0d4d2a1aba13de6", "6fb6644eff09ac0b028c026bbd4596db54823588be64d73d929c48f80430bd34"),
-    ("fe345ee8aa22ab8f247f0630e05855d80857765f513fb290740b5eedaf62340b", "7e887e2b72a146becbdfa4832d30e1adbde9c9ed3ebe5294def6c8dda4232522"),
+    // ("fe345ee8aa22ab8f247f0630e05855d80857765f513fb290740b5eedaf62340b", "7e887e2b72a146becbdfa4832d30e1adbde9c9ed3ebe5294def6c8dda4232522"), This map is enormous...
     ("c539e84383dc2629a981ee2a0ec6b6c2bd1893335b0050d567d42a18bd3293d1", "2306324577c785371ba07d44d8a0cffcf6becaace6360f34bf2725e6dec2ba0d"),
     ("202b59d9bac2d1f8db8c6bc8cef9c418b8b36b8a28a86a9d9b4d0497bdd47f70", "c2cd74ffa02f3521edfa8f59a036953ea7e79d051e2820f2276aaee04da45d74"),
     ("7db3437c9823a838c42311c67fee48261089d59168b603c4b37d0e244cbd4c86", "6f10fe52079bec09b2073868cbb0c14f6844e60559b865d4a08d7926c7e9c0ef"),
