@@ -64,7 +64,7 @@ async fn download_test_artifacts<'a, T: AsRef<Path>, I: Iterator<Item = &'a str>
 
     process_iter_async_concurrent(
         iter,
-        || dir.as_ref().clone(),
+        || dir.as_ref(),
         1,
         |_x, _y| {},
         |path, id| async move {
