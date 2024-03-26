@@ -48,7 +48,7 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
     let _lock = LOCK.lock().unwrap();
     unsafe {
         let mut mpq_handle = 0 as HANDLE;
-        if SFileOpenArchive(cstr.as_ptr(), 0, 0, &mut mpq_handle as *mut _) == false {
+        if !SFileOpenArchive(cstr.as_ptr(), 0, 0, &mut mpq_handle as *mut _) {
             bail!(
                 "SFileOpenArchive. GetLastError: {}, filename: {}",
                 GetLastError(),
@@ -57,7 +57,7 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
         }
 
         defer! {
-            if SFileCloseArchive(mpq_handle) == false {
+            if !SFileCloseArchive(mpq_handle) {
                 error!(
                     "{:?}",
                     anyhow!(
@@ -74,13 +74,12 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
 
             SFileSetLocale(locale);
             let mut archive_file_handle = 0 as HANDLE;
-            if SFileOpenFileEx(
+            if !SFileOpenFileEx(
                 mpq_handle,
                 cstr.as_ptr(),
                 0,
                 &mut archive_file_handle as *mut _,
-            ) == false
-            {
+            ) {
                 bail!(
                     "SFileOpenFileEx. GetLastError: {}, filename: {filename}, locale: {locale}",
                     GetLastError()
@@ -88,7 +87,7 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
             }
 
             defer! {
-                if SFileCloseFile(archive_file_handle) == false {
+                if !SFileCloseFile(archive_file_handle) {
                     error!(
                         "{:?}",
                         anyhow!(
@@ -100,14 +99,13 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
             };
 
             let mut gotten_locale = 0u32;
-            if SFileGetFileInfo(
+            if !SFileGetFileInfo(
                 archive_file_handle,
                 _SFileInfoClass_SFileInfoLocale,
                 &mut gotten_locale as *mut _ as *mut c_void,
                 size_of::<u32>() as u32,
                 0 as *mut _,
-            ) == false
-            {
+            ) {
                 bail!(
                     "SFileGetFileInfo. GetLastError: {}, filename: {filename}, locale: {locale}",
                     GetLastError()
@@ -139,14 +137,13 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
             let mut chk_data: Vec<u8> = vec![0; file_size_low as usize];
 
             let mut size: u32 = 0;
-            if SFileReadFile(
+            if !SFileReadFile(
                 archive_file_handle,
                 chk_data.as_mut_ptr() as *mut _,
                 chk_data.len() as u32,
                 &mut size as *mut _,
                 0 as *mut _,
-            ) == false
-            {
+            ) {
                 let last_error = GetLastError();
                 if last_error != ERROR_HANDLE_EOF || size == chk_data.len() as u32 {
                     bail!(
@@ -196,7 +193,7 @@ pub fn get_chk_from_mpq_in_memory(mpq: &[u8]) -> Result<Vec<u8>> {
         }
     }
 
-    file.write(mpq)?;
+    file.write_all(mpq)?;
 
     file.flush()?;
 
