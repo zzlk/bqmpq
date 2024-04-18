@@ -1,8 +1,10 @@
 use crate::get_chk_from_mpq_in_memory;
 use anyhow::Result;
 use futures_util::{future::select_all, FutureExt};
+use reqwest::Version;
 use sha2::Digest;
 use std::{
+    error::Error,
     future::Future,
     path::{Path, PathBuf},
 };
@@ -62,12 +64,18 @@ async fn download_test_artifacts<'a, T: AsRef<Path>, I: Iterator<Item = &'a str>
 ) -> Result<()> {
     tokio::fs::create_dir_all(&dir).await?;
 
+    let client = reqwest::ClientBuilder::new()
+        .use_rustls_tls()
+        .https_only(true)
+        .build()
+        .unwrap();
+
     process_iter_async_concurrent(
         iter,
-        || dir.as_ref(),
+        || (dir.as_ref(), client.clone()),
         1,
         |_x, _y| {},
-        |path, id| async move {
+        |(path, client), id| async move {
             let path = path.join(id);
 
             match tokio::fs::read(&path).await {
@@ -82,7 +90,14 @@ async fn download_test_artifacts<'a, T: AsRef<Path>, I: Iterator<Item = &'a str>
 
             let url = format!("https://scmscx.com/api/maps/{}", id);
             println!("getting: {url}");
-            let bytes = reqwest::get(url).await.unwrap().bytes().await.unwrap();
+
+            let response = client
+                .get(url)
+                .version(Version::HTTP_2)
+                .send()
+                .await
+                .unwrap();
+            let bytes = response.bytes().await.unwrap();
 
             assert!(bytes.len() > 0);
             assert_eq!(hash(&bytes[..]), id);
