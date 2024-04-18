@@ -4,7 +4,6 @@ use futures_util::{future::select_all, FutureExt};
 use reqwest::Version;
 use sha2::Digest;
 use std::{
-    error::Error,
     future::Future,
     path::{Path, PathBuf},
 };
