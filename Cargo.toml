@@ -16,5 +16,4 @@ uuid = { version = "*", features = ["v4"] }
 reqwest = { version = "*", default-features = false, features = ["json", "http2", "rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
 sha2 = "*"
-futures = "*"
 futures-util = "*"
