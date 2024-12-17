@@ -21,6 +21,7 @@ use stormlib_bindings::SFileSetLocale;
 use stormlib_bindings::_SFileInfoClass_SFileInfoLocale;
 use stormlib_bindings::ERROR_HANDLE_EOF;
 use stormlib_bindings::SFILE_INVALID_SIZE;
+use stormlib_bindings::STREAM_FLAG_READ_ONLY;
 use stormlib_bindings::{GetLastError, SFileOpenArchive, HANDLE};
 use tracing::info;
 use tracing::{error, instrument};
@@ -48,7 +49,12 @@ pub fn get_chk_from_mpq_filename<T: AsRef<Path>>(filename: T) -> Result<Vec<u8>>
     let _lock = LOCK.lock().unwrap();
     unsafe {
         let mut mpq_handle = 0 as HANDLE;
-        if !SFileOpenArchive(cstr.as_ptr(), 0, 0, &mut mpq_handle as *mut _) {
+        if !SFileOpenArchive(
+            cstr.as_ptr(),
+            0,
+            STREAM_FLAG_READ_ONLY,
+            &mut mpq_handle as *mut _,
+        ) {
             bail!(
                 "SFileOpenArchive. GetLastError: {}, filename: {}",
                 GetLastError(),
